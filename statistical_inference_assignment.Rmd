@@ -1,0 +1,220 @@
+---
+title: "Coursera Statistical Inference - Assignment"
+date: "11/15/2016"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Part 1 - Simulation to Demonstrate Central Limit Theorem
+
+### Overview
+Simulation in R can be used to demonstrate the Central Limit Theorem.  In this report the exponential distribution is used as the basis for generating independent random numbers for which the mean is calculated.  1000 simulations are carried out for samples of size 40 and 1000 means calculated.  It is demonstrated that the Sample Mean, the Sample Variance and the Sample Distribution are all good approximations to the Theoretical Mean, the Theoretical Variance and the Normal Distribution respectively and so successfully demonstrating the Central Limit Theorem.
+
+### Simulation
+
+In the simulation detailed in R below, the R function *rexp* is used to generate random numbers from the exponential distribution with lambda set to 0.2.  1000 simulations of 40 observations are recorded in a matrix and the mean calculated for each of the 1000 simulations.  
+
+The theoretical mean for an exponential distribution with lambda=0.2 is 5 and the theoretical variance is 25.  The theoretical variance of the means of samples of size 40 would therefore be expected to be 25/40 which is 0.625. 
+
+Once the 1000 means have been calculated, the mean of those statistics is calculated using the R function *mean* and the variance is calculated using the R function *var* so that they can be compared to the theoretical mean of 5 and the theoretical variance of 0.625 respectively.
+
+
+```{r echo=TRUE, warning=FALSE}
+library(ggplot2)
+library(gridExtra)
+
+```{r warning=FALSE, results=FALSE}
+
+##  COMPARE DENSITY DISTRIBUTIONS OF RANDOM NUMBERS
+##  ALONGSIDE THE DENSITY DISTRIBUTION OF MEANS
+nsim <- 1000  # Total number of simulations
+n <- 40  # Number of observations in each set
+lambda <- 0.2  # Rate parameter
+mu <- 5
+
+exp.randoms <- rexp(n * nsim, lambda)
+xbar.exp.randoms <- mean(exp.randoms)
+exp.means <- apply(matrix(exp.randoms, nsim),1, mean)
+xbar.exp.means <- mean(exp.means)
+var.exp.means <- var(exp.means)
+std.err.exp.means <- sqrt(var.exp.means)
+```
+
+The values calculated above are used to construct 2 plots using the ggplot2 package in R below.  The first plot is constructed from the random exponentials to demonstrate the shape of the density distribution for the sample of 40,000 randomly generated numbers while the second plot is constructed to demonstrate the density distribution of the 1000 calculated means.
+
+```{r warning=FALSE, results=FALSE}
+exp.randoms.df <- as.data.frame(exp.randoms)
+exp.means.df <- as.data.frame(exp.means)
+
+
+g1 <- ggplot(exp.randoms.df, aes(exp.randoms.df)) + 
+    geom_histogram(aes(x=exp.randoms.df, y=..density..), 
+                   binwidth=0.2, colour="blue", fill="blue") + 
+    scale_x_continuous(name="random exponentials", limits=c(0, 30)) +
+    geom_vline(xintercept=xbar.exp.randoms, colour="black") +
+    ggtitle("Density of 40,000 Random Exponentials")
+
+g2 <- ggplot(exp.means.df, aes(exp.means.df)) + 
+    geom_histogram(aes(x=exp.means.df, y=..density..), 
+                   binwidth=0.2, colour="blue", fill="blue") + 
+    stat_function(fun=dnorm, colour="magenta", 
+                  args=list(mean=5, sd=sqrt(0.625)), size=1.5) +
+    scale_x_continuous(name="simulated mean", limits=c(2, 8)) +
+    geom_vline(xintercept=xbar.exp.means, colour="black") +
+    ggtitle("Density of Means \n1000 Experiments of 40 Random Exponentials")
+
+```
+
+```{r warning=FALSE, message=FALSE, fig.width=12}
+grid.arrange(g1, g2, ncol=2)
+```
+
+In the left hand plot the blue shapes of the histogram display an approximation to the shape of the exponential distribution while in the right hand plot a more bell shaped distributon can  be seen. The magenta line which is overlaid on the right hand plot shows the Normal Distribution for mean 5 and standard deviation sqrt(0.625) which is the expected mean and standard error for the statistic.  This shows that the density distribution for the Sample Means is a good approximation to the normal distribution N(5,25/40). In both plots the black vertical line is positioned at the Sample Mean and in both cases the sample mean is very close to the expected value of 5.
+
+### Sample Mean And Sample Variance
+
+The sample variance approximates to the theoretical variance and the sample mean approximates to the theoretical mean as shown in the statements of value below and then plotted in the figures that follow.
+
+- The theoretical mean of the exponential distribution with lambda = 0.2 is: 5.
+- The sample mean is: `r format(xbar.exp.means, digits=4)`.
+- The theoretical variance the population variance is: 0.625.
+- The sample variance is: `r format(var.exp.means, digits=4)`.
+
+
+```{r warning=FALSE, results=FALSE, echo=FALSE}
+g1 <- ggplot() + scale_x_continuous(limits=c(4.9,5.1)) + 
+    geom_vline(xintercept=xbar.exp.means, colour="black") + 
+    geom_vline(xintercept=5, colour="magenta", size=2) +
+    xlab("mean") +
+    ggtitle("Comparison of Theoretical versus Sample Mean")
+
+g2 <- ggplot() + scale_x_continuous(limits=c(0.575,0.675)) + 
+    geom_vline(xintercept=var.exp.means, colour="black") + 
+    geom_vline(xintercept=0.625, colour="magenta", size=2) +
+    xlab("mean") +
+    ggtitle("Comparison of Theoretical versus Sample Mean")
+
+```
+
+
+```{r warning=FALSE, message=FALSE, fig.width=12}
+grid.arrange(g1, g2, ncol=2)
+```
+
+### Conclusion
+
+It has therefore been shown that the Sample Variance approximates to the Theoretical Variance, the Sample Mean approximates to the Theoretical Mean and the Distribution of Sample Means approximates the Normal Distribution hence demonstrating the Central Limit Theorem.
+
+
+## Part 2 - Analysis of Tooth Decay Data
+
+### Overview
+
+The data from the ToothGrowth data set in R was loaded and some initial analysis carried out.  From the initial plot, 4 null hypotheses were proposed and investigated.  The results from the testing enabled a conclusion to be reached identifying the most effective course of treatment for tooth growth as 1.0mg/day of OJ or 2.0mg/day of VC.
+
+### Exploratory Data Analysis
+
+Initial investigations are described below.
+ 
+```{r warning=FALSE, results=FALSE, error=FALSE, message=FALSE}
+library(dplyr)
+```
+
+```{r warning=FALSE, results=FALSE}
+data(ToothGrowth)
+str(ToothGrowth)
+by_supp_dose <- group_by(ToothGrowth, supp, dose)
+count(by_supp_dose)
+summarise(by_supp_dose, mean(len))
+
+ggplot(ToothGrowth, aes(x=dose, y=len, colour=supp)) + geom_point() + geom_smooth()
+
+```
+ 
+### Hypothesis Tests
+
+From the exploratory data analysis the following null hypothesis are proposed:
+
+1.  the mean length of tooth growth for 0.5mg/day "OJ" is greater than the mean length of tooth growth for 0.5mg/day of "VC".
+2. the mean length of tooth growth for 1.0mg/day of "OJ" is greater than the mean length of tooth growth for 1.0mg/day of "VC"
+3. the mean length of tooth growth for 2.0mg/day of "OJ" is equal to the mean length of tooth growth for 1.0mg/day of "OJ"
+4. the mean length of tooth growth for 2.0mg/day of "VC" is equal to the mean length of tooth growth for 1.0mg/day "OJ".
+
+
+If all of the above null hypothesis fail to be rejected then the recommended way forward for maximum tooth growth could consider either 2.0mg/day of VC or 1.0mg/day of OJ while taking into consideration other factors influencing a decision such as cost.
+
+
+#### Test 1
+
+Null hypothesis:  the mean length of tooth growth for 0.5mg/day "OJ" is greater than the mean length of tooth growth for 0.5mg/day of "VC".
+
+A significance level of 0.05 on a one sided test is used.  The function t.test in R is used to obtain the p.value as shown below.
+  
+```{r warning=FALSE}
+p.value <- t.test(ToothGrowth[ToothGrowth$supp=="OJ" & ToothGrowth$dose==0.5, "len"],
+       ToothGrowth[ToothGrowth$supp=="VC" & ToothGrowth$dose==0.5, "len"], 
+       var.equal=TRUE, paired=FALSE, alternative="less")$p.value
+```
+A p.value of `r format(p.value, digits=3)` is returned which is greater than 0.05 so the null hypothesis is accepted.
+
+#### Test 2
+
+Null hypothesis:  the mean length of tooth growth for 1.0mg/day of "OJ" is greater than the mean length of tooth growth for 1.0mg/day of "VC"
+
+A significance level of 0.05 on a one sided test is used.  The function t.test in R is used to obtain the p.value as shown below.
+
+```{r warning=FALSE}
+p.value <- t.test(ToothGrowth[ToothGrowth$supp=="OJ" & ToothGrowth$dose==1.0, "len"],
+       ToothGrowth[ToothGrowth$supp=="VC" & ToothGrowth$dose==1.0, "len"], 
+       var.equal=TRUE, paired=FALSE, alternative="less")$p.value
+```
+A p.value of `r format(p.value, digits=3)` is returned which is greater than 0.05 so the null hypothesis is accepted.
+
+
+#### Test 3
+
+Null hypothesis: the mean length of tooth growth for 2.0mg/day of "OJ" is equal to the mean length of tooth growth for 1.0mg/day of "OJ"
+
+A significance level of 0.05 on a two sided test is used.  The function t.test in R is used to obtain the p.value as shown below.
+
+```{r warning=FALSE}
+p.value <- t.test(ToothGrowth[ToothGrowth$supp=="OJ" & ToothGrowth$dose==2.0, "len"],
+       ToothGrowth[ToothGrowth$supp=="OJ" & ToothGrowth$dose==1.0, "len"], 
+       var.equal=TRUE, paired=FALSE, alternative="two.sided")$p.value
+```
+A p.value of `r format(p.value, digits=3)` is returned which is greater than 0.025 so the null hypothesis is accepted.
+
+#### Test 4
+
+Null hypothesis: the mean length of tooth growth for 2.0mg/day of "VC" is equal to the mean length of tooth growth for 1.0mg/day "OJ".
+
+A significance level of 0.05 on a two sided test is used. The function t.test in R is used to obtain the p.value as shown below.
+
+```{r warning=FALSE}
+p.value <- t.test(ToothGrowth[ToothGrowth$supp=="VC" & ToothGrowth$dose==2.0, "len"],
+       ToothGrowth[ToothGrowth$supp=="OJ" & ToothGrowth$dose==1.0, "len"], 
+       var.equal=TRUE, paired=FALSE, alternative="two.sided")$p.value
+```
+A p.value of `r format(p.value, digits=3)` is returned which is greater than 0.025 so the null hypothesis is accepted.
+
+### Conclusion
+
+The conclusion from the hypothesis testing is that either 1.0mg/day of OJ or 2.0mg/day of VC would be the most effective course of treatment for tooth growth.  2.0mg/day of OJ would potentially achieve the same results but would be more expensive than 1.0mg/day of OJ so has been discounted.
+
+A decision on whether to proceed with OJ or VC as a treatment would be dependent on other factors such as cost, ease of administration, other side effects, etc.
+
+## Assumptions
+
+In performing the hypothesis testing, the following assumptions were made:
+
+- all subjects were randomly assigned to treatments 
+- there is little skewness and no-outliers in the samples.  This looked to be the case from the exploratory graph.
+- the variance of the different sample groups (0.5mg/day OJ, 0.5mg/day VC, 1.0mg/day OJ, etc) are the same.
+ 
+
+ 
+ 
